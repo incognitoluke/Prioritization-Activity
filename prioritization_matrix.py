@@ -4,6 +4,29 @@ import altair as alt
 import sqlite3
 from streamlit_autorefresh import st_autorefresh
 
+# Initialize SQLite database
+conn = sqlite3.connect('initiatives.db', check_same_thread=False)
+c = conn.cursor()
+c.execute('''
+    CREATE TABLE IF NOT EXISTS initiatives (
+        id INTEGER PRIMARY KEY,
+        name TEXT,
+        impact INTEGER,
+        feasibility INTEGER,
+        work_stream TEXT,
+        time_horizon TEXT,
+        description TEXT
+    )
+''')
+c.execute('''
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY,
+        username TEXT UNIQUE,
+        password TEXT
+    )
+''')
+conn.commit()
+
 # Authentication
 def check_password():
     def password_entered():
@@ -25,21 +48,6 @@ def check_password():
 
 if check_password():
     st.set_page_config(layout="wide")
-    # Initialize SQLite database
-    conn = sqlite3.connect('initiatives.db', check_same_thread=False)
-    c = conn.cursor()
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS initiatives (
-            id INTEGER PRIMARY KEY,
-            name TEXT,
-            impact INTEGER,
-            feasibility INTEGER,
-            work_stream TEXT,
-            time_horizon TEXT,
-            description TEXT
-        )
-    ''')
-    conn.commit()
 
     # Function to load initiatives from the database
     @st.cache_data
@@ -202,9 +210,9 @@ if check_password():
             # Create scatter plot using Altair with different shapes for time horizons
             with st.container(border=True):
                 st.write("### Prioritization Matrix")
-                chart = alt.Chart(df).mark_point(size=200).encode(
-                    x=alt.X('Impact', scale=alt.Scale(domain=[0, 10], clamp=True)),
-                    y=alt.Y('Feasibility', scale=alt.Scale(domain=[0, 10], clamp=True)),
+                chart = alt.Chart(df).mark_point(size=400).encode(
+                    x=alt.X('Impact', scale=alt.Scale(domain=[0, 10], clamp=True, nice=False)),
+                    y=alt.Y('Feasibility', scale=alt.Scale(domain=[0, 10], clamp=True, nice=False)),
                     color=alt.Color('Work Stream:N', scale=alt.Scale(scheme='category10')),
                     shape=alt.Shape('Time Horizon:N', scale=alt.Scale(
                         domain=['Short term', 'Medium term', 'Long term'],
@@ -214,8 +222,10 @@ if check_password():
                 ).properties(
                     height=600
                 ).configure_legend(
-                    orient='bottom'
-                ).interactive()
+                    orient='bottom',
+                    labelFontSize=16,
+                    symbolSize=400
+                )
                 st.altair_chart(chart, use_container_width=True)
 
             st.dataframe(df, hide_index=True, height=500, use_container_width=True)
