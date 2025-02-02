@@ -106,8 +106,9 @@ if check_password():
         work_streams = ["Service Desk", "Deployment", "Reliability", "Finance", "Network"]
         selected_workstream = st.selectbox("Select Work Stream", work_streams)
 
-        # Add Initiative Form
-        with st.form(key='add_initiative_form', clear_on_submit=True):
+        with st.form(key='add_initiative_form'):
+
+            # Add Initiative Form
             st.write("### Add Initiative")
             initiative_name = st.text_input("Initiative Name")
             impact = st.slider("Impact Score (0-10)", 0, 10, 5)
@@ -116,15 +117,13 @@ if check_password():
             time_horizon = st.selectbox("Time Horizon", ["Long term", "Medium term", "Short term"])
             description = st.text_area("Description")
             submit_button = st.form_submit_button(label='Submit', use_container_width=True)
-            
+
             if submit_button:
                 if initiative_name:
                     add_initiative(initiative_name, impact, feasibility, work_stream, time_horizon, description)
-                    st.success(f"Initiative '{initiative_name}' added.")
-                    st.cache_data.clear()
-                    st.rerun()
+                    st.success(f"Initiative added successfully for {initiative_name}. See below to make edits.")
                 else:
-                    st.warning("Please enter an initiative name.")
+                    st.error("Please fill out the initiative name.")
 
         # Edit Initiative Section
         st.divider()
@@ -223,8 +222,8 @@ if check_password():
                     height=600
                 ).configure_legend(
                     orient='bottom',
-                    labelFontSize=12,
-                    symbolSize=400
+                    labelFontSize=16,
+                    symbolSize=300
                 )
                 st.altair_chart(chart, use_container_width=True)
 
