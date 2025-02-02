@@ -49,6 +49,26 @@ def update_initiative(initiative_id, name, impact, feasibility, work_stream, tim
     conn.commit()
     st.cache_data.clear()
 
+
+@st.dialog("Change your initiative information")
+def edit_initiative(initiative_id, initiatives):
+    df = pd.DataFrame(initiatives, columns=["ID", "Name", "Impact", "Feasibility", "Work Stream", "Time Horizon"])
+    row = df[df['ID'] == initiative_id].iloc[0]
+
+    with st.form(key=f"edit_form_{initiative_id}"):
+        st.write("### Edit Initiative")
+        new_name = st.text_input("Initiative Name", value=row['Name'])
+        new_impact = st.slider("Impact Score (0-10)", 0, 10, row['Impact'])
+        new_feasibility = st.slider("Feasibility Score (0-10)", 0, 10, row['Feasibility'])
+        new_work_stream = st.selectbox("Work Stream", [row['Work Stream']], disabled=True)
+        new_time_horizon = st.selectbox("Time Horizon", ["Long term", "Medium term", "Short term"], index=["Long term", "Medium term", "Short term"].index(row['Time Horizon']))
+        submit_button = st.form_submit_button(label='Submit')
+        
+        if submit_button:
+            update_initiative(initiative_id, new_name, new_impact, new_feasibility, new_work_stream, new_time_horizon)
+            st.success(f"Initiative '{new_name}' updated.")
+            st.rerun()
+            
 # Page 1: Add Initiative
 def page_add_initiative(selected_workstream):
     st.title("Add Initiative")
@@ -72,17 +92,26 @@ def page_add_initiative(selected_workstream):
 def page_view_initiatives(selected_workstream):
     st.title("View Initiatives")
 
+    time_horizon_filter = st.selectbox("Filter by Time Horizon", ["All", "Long term", "Medium term", "Short term"], index=0)
+
     initiatives = load_initiatives()
     if initiatives:
         df = pd.DataFrame(initiatives, columns=["ID", "Name", "Impact", "Feasibility", "Work Stream", "Time Horizon"])
         df = df[df["Work Stream"] == selected_workstream]
 
-        # Create scatter plot using Altair
+        if time_horizon_filter != "All":
+            df = df[df["Time Horizon"] == time_horizon_filter]
+
+        # Create scatter plot using Altair with different shapes for time horizons
         st.write("### Prioritization Matrix")
-        chart = alt.Chart(df).mark_circle(size=200).encode(
+        chart = alt.Chart(df).mark_point(size=200).encode(
             x=alt.X('Impact', scale=alt.Scale(domain=[0, 10])),
             y=alt.Y('Feasibility', scale=alt.Scale(domain=[0, 10])),
             color=alt.Color('Work Stream:N', scale=alt.Scale(scheme='category10')),
+            shape=alt.Shape('Time Horizon:N', scale=alt.Scale(
+                domain=['Short term', 'Medium term', 'Long term'],
+                range=['circle', 'square', 'triangle-up']
+            )),
             tooltip=['Name', 'Impact', 'Feasibility', 'Work Stream', 'Time Horizon']
         ).interactive()
         st.altair_chart(chart, use_container_width=True)
@@ -91,25 +120,6 @@ def page_view_initiatives(selected_workstream):
 
     # Auto-refresh every 20 seconds
     st_autorefresh(interval=20000, key="data_refresh")
-
-@st.dialog("Change your initiative information")
-def edit_initiative(initiative_id, initiatives):
-    df = pd.DataFrame(initiatives, columns=["ID", "Name", "Impact", "Feasibility", "Work Stream", "Time Horizon"])
-    row = df[df['ID'] == initiative_id].iloc[0]
-
-    with st.form(key=f"edit_form_{initiative_id}"):
-        st.write("### Edit Initiative")
-        new_name = st.text_input("Initiative Name", value=row['Name'])
-        new_impact = st.slider("Impact Score (0-10)", 0, 10, row['Impact'])
-        new_feasibility = st.slider("Feasibility Score (0-10)", 0, 10, row['Feasibility'])
-        new_work_stream = st.selectbox("Work Stream", [row['Work Stream']], disabled=True)
-        new_time_horizon = st.selectbox("Time Horizon", ["Long term", "Medium term", "Short term"], index=["Long term", "Medium term", "Short term"].index(row['Time Horizon']))
-        submit_button = st.form_submit_button(label='Submit')
-        
-        if submit_button:
-            update_initiative(initiative_id, new_name, new_impact, new_feasibility, new_work_stream, new_time_horizon)
-            st.success(f"Initiative '{new_name}' updated.")
-            st.rerun()
 
 # Page 3: Edit Initiative
 def page_edit_initiative(selected_workstream):
@@ -122,37 +132,66 @@ def page_edit_initiative(selected_workstream):
 
         st.write("### Edit or Remove Initiative")
         for _, row in df.iterrows():
-            col1, col2, col3 = st.columns([3, 1, 1])
-            with col1:
-                st.write(f"{row['Name']} (Impact: {row['Impact']}, Feasibility: {row['Feasibility']}, Work Stream: {row['Work Stream']}, Time Horizon: {row['Time Horizon']})")
-            with col2:
-                if st.button("Edit", key=f"edit_{row['ID']}"):
-                    edit_initiative(row['ID'], initiatives)
-            with col3:
-                if st.button("Remove", key=f"remove_{row['ID']}"):
-                    remove_initiative(row['ID'])
-                    st.error(f"Initiative '{row['Name']}' removed.")
-                    st.rerun()
+            st.divider()
+            with st.container():
+                col1, col2, col3 = st.columns([4, 1, 1])
+                with col1:
+                    st.write(row['ID'], " - ", row['Name'])
+                with col2:
+                    st.write(f'Impact: {row["Impact"]}')
+                with col3:
+                    st.write(f'Feasibility: {row["Feasibility"]}')
+
+                col4 = st.columns([1])[0]
+                with col4:
+                    st.markdown(f"""
+                        <div style="margin-top: 1rem; margin-bottom: 1rem; background-color: #f0f0f0; border-radius: 10px; padding: 10px; width: 100%;">
+                            Description
+                        </div>
+                    """, unsafe_allow_html=True)
+
+                col5, col6, col7, col8 = st.columns([2, 1, 1, 1])
+                with col5:
+                    st.markdown(f":blue-background[{row['Work Stream']}]")
+                with col6:
+                    st.markdown(f":blue-background[{row['Time Horizon']}]")
+                with col7:
+                    if st.button("Edit", key=f"edit_{row['ID']}", use_container_width=True):
+                        edit_initiative(row['ID'], initiatives)
+                with col8:
+                    if st.button("Remove", key=f"remove_{row['ID']}", help="This action cannot be undone.", use_container_width=True):
+                        remove_initiative(row['ID'])
+                        st.error(f"Initiative '{row['Name']}' removed.")
+                        st.rerun()
 
 # Page 4: Master View Initiatives
 def page_master_view_initiatives():
     st.title("Master View Initiatives")
 
+    time_horizon_filter = st.selectbox("Filter by Time Horizon", ["All", "Long term", "Medium term", "Short term"], index=0)
+
     initiatives = load_initiatives()
     if initiatives:
         df = pd.DataFrame(initiatives, columns=["ID", "Name", "Impact", "Feasibility", "Work Stream", "Time Horizon"])
 
-        # Create scatter plot using Altair
+        if time_horizon_filter != "All":
+            df = df[df["Time Horizon"] == time_horizon_filter]
+
+        # Create scatter plot using Altair with different shapes for time horizons
         st.write("### Prioritization Matrix")
-        chart = alt.Chart(df).mark_circle(size=200).encode(
+        chart = alt.Chart(df).mark_point(size=200).encode(
             x=alt.X('Impact', scale=alt.Scale(domain=[0, 10])),
             y=alt.Y('Feasibility', scale=alt.Scale(domain=[0, 10])),
             color=alt.Color('Work Stream:N', scale=alt.Scale(scheme='category10')),
+            shape=alt.Shape('Time Horizon:N', scale=alt.Scale(
+                domain=['Short term', 'Medium term', 'Long term'],
+                range=['circle', 'square', 'triangle-up']
+            )),
             tooltip=['Name', 'Impact', 'Feasibility', 'Work Stream', 'Time Horizon']
         ).interactive()
         st.altair_chart(chart, use_container_width=True)
 
-        st.dataframe(df, hide_index=True, height=500, use_container_width=True)  # Set the height to make it scrollable and expand width
+        st.dataframe(df, hide_index=True, height=500, use_container_width=True)
 
     # Auto-refresh every 20 seconds
     st_autorefresh(interval=20000, key="data_refresh")
