@@ -223,7 +223,7 @@ if check_password():
                     height=600
                 ).configure_legend(
                     orient='bottom',
-                    labelFontSize=16,
+                    labelFontSize=12,
                     symbolSize=400
                 )
                 st.altair_chart(chart, use_container_width=True)
