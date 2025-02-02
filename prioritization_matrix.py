@@ -49,7 +49,6 @@ def update_initiative(initiative_id, name, impact, feasibility, work_stream, tim
     conn.commit()
     st.cache_data.clear()
 
-
 @st.dialog("Change your initiative information")
 def edit_initiative(initiative_id, initiatives):
     df = pd.DataFrame(initiatives, columns=["ID", "Name", "Impact", "Feasibility", "Work Stream", "Time Horizon"])
@@ -68,12 +67,14 @@ def edit_initiative(initiative_id, initiatives):
             update_initiative(initiative_id, new_name, new_impact, new_feasibility, new_work_stream, new_time_horizon)
             st.success(f"Initiative '{new_name}' updated.")
             st.rerun()
-            
-# Page 1: Add Initiative
-def page_add_initiative(selected_workstream):
-    st.title("Add Initiative")
 
-    with st.form(key='add_initiative_form'):
+# Central view for adding and editing initiatives
+def page_add_edit_initiative(selected_workstream):
+    st.title("Add or Edit Initiative")
+
+    # Add Initiative Form
+    with st.form(key='add_initiative_form', clear_on_submit=True):
+        st.write("### Add Initiative")
         initiative_name = st.text_input("Initiative Name")
         impact = st.slider("Impact Score (0-10)", 0, 10, 5)
         feasibility = st.slider("Feasibility Score (0-10)", 0, 10, 5)
@@ -85,52 +86,19 @@ def page_add_initiative(selected_workstream):
             if initiative_name:
                 add_initiative(initiative_name, impact, feasibility, work_stream, time_horizon)
                 st.success(f"Initiative '{initiative_name}' added.")
+                st.cache_data.clear()
+                st.rerun()
             else:
                 st.warning("Please enter an initiative name.")
 
-# Page 2: View Initiatives
-def page_view_initiatives(selected_workstream):
-    st.title("View Initiatives")
-
-    time_horizon_filter = st.selectbox("Filter by Time Horizon", ["All", "Long term", "Medium term", "Short term"], index=0)
-
+    # Edit Initiative Section
+    st.divider()
+    st.write("### Edit or Remove Initiative")
     initiatives = load_initiatives()
     if initiatives:
         df = pd.DataFrame(initiatives, columns=["ID", "Name", "Impact", "Feasibility", "Work Stream", "Time Horizon"])
         df = df[df["Work Stream"] == selected_workstream]
 
-        if time_horizon_filter != "All":
-            df = df[df["Time Horizon"] == time_horizon_filter]
-
-        # Create scatter plot using Altair with different shapes for time horizons
-        st.write("### Prioritization Matrix")
-        chart = alt.Chart(df).mark_point(size=200).encode(
-            x=alt.X('Impact', scale=alt.Scale(domain=[0, 10])),
-            y=alt.Y('Feasibility', scale=alt.Scale(domain=[0, 10])),
-            color=alt.Color('Work Stream:N', scale=alt.Scale(scheme='category10')),
-            shape=alt.Shape('Time Horizon:N', scale=alt.Scale(
-                domain=['Short term', 'Medium term', 'Long term'],
-                range=['circle', 'square', 'triangle-up']
-            )),
-            tooltip=['Name', 'Impact', 'Feasibility', 'Work Stream', 'Time Horizon']
-        ).interactive()
-        st.altair_chart(chart, use_container_width=True)
-
-        st.dataframe(df, hide_index=True, height=500, use_container_width=True)  # Set the height to make it scrollable and expand width
-
-    # Auto-refresh every 20 seconds
-    st_autorefresh(interval=20000, key="data_refresh")
-
-# Page 3: Edit Initiative
-def page_edit_initiative(selected_workstream):
-    st.title("Edit Initiative")
-
-    initiatives = load_initiatives()
-    if initiatives:
-        df = pd.DataFrame(initiatives, columns=["ID", "Name", "Impact", "Feasibility", "Work Stream", "Time Horizon"])
-        df = df[df["Work Stream"] == selected_workstream]
-
-        st.write("### Edit or Remove Initiative")
         for _, row in df.iterrows():
             st.divider()
             with st.container():
@@ -164,11 +132,19 @@ def page_edit_initiative(selected_workstream):
                         st.error(f"Initiative '{row['Name']}' removed.")
                         st.rerun()
 
-# Page 4: Master View Initiatives
+# Sidebar for navigation
+st.sidebar.title("Navigation")
+work_streams = ["Service Desk", "Deployment", "Reliability", "Finance", "Network"]
+selected_workstream = st.sidebar.selectbox("Select Work Stream", work_streams)
+page = st.sidebar.radio("Go to", ["Add/Edit Initiative", "Master View Initiatives"])
+
+
+
 def page_master_view_initiatives():
     st.title("Master View Initiatives")
 
     time_horizon_filter = st.selectbox("Filter by Time Horizon", ["All", "Long term", "Medium term", "Short term"], index=0)
+    work_stream_filter = st.selectbox("Filter by Work Stream", ["All"] + work_streams, index=0)
 
     initiatives = load_initiatives()
     if initiatives:
@@ -176,6 +152,9 @@ def page_master_view_initiatives():
 
         if time_horizon_filter != "All":
             df = df[df["Time Horizon"] == time_horizon_filter]
+
+        if work_stream_filter != "All":
+            df = df[df["Work Stream"] == work_stream_filter]
 
         # Create scatter plot using Altair with different shapes for time horizons
         st.write("### Prioritization Matrix")
@@ -196,18 +175,8 @@ def page_master_view_initiatives():
     # Auto-refresh every 20 seconds
     st_autorefresh(interval=20000, key="data_refresh")
 
-# Sidebar for navigation
-st.sidebar.title("Navigation")
-work_streams = ["Service Desk", "Deployment", "Reliability", "Finance", "Network"]
-selected_workstream = st.sidebar.selectbox("Select Work Stream", work_streams)
-page = st.sidebar.radio("Go to", ["Add Initiative", "View Initiatives", "Edit Initiative", "Master View Initiatives"])
-
 # Page selection
-if page == "Add Initiative":
-    page_add_initiative(selected_workstream)
-elif page == "View Initiatives":
-    page_view_initiatives(selected_workstream)
-elif page == "Edit Initiative":
-    page_edit_initiative(selected_workstream)
+if page == "Add/Edit Initiative":
+    page_add_edit_initiative(selected_workstream)
 elif page == "Master View Initiatives":
     page_master_view_initiatives()
