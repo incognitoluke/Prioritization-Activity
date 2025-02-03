@@ -103,7 +103,7 @@ if check_password():
         st.title("Initiative Prioritization Repository")
 
         # Work Stream Selection
-        work_streams = ["Service Desk", "Deployment", "Reliability", "Finance", "Network"]
+        work_streams = ["OTC", "PTP", "RTR", "Data", "Technology"]
         selected_workstream = st.selectbox("Select Work Stream", work_streams)
 
         with st.form(key='add_initiative_form'):
@@ -194,7 +194,7 @@ if check_password():
 
         with st.container(border=True):
             time_horizon_filter = st.selectbox("Filter by Time Horizon", ["All", "Long term", "Medium term", "Short term"], index=0)
-            work_stream_filter = st.selectbox("Filter by Work Stream", ["All", "Service Desk", "Deployment", "Reliability", "Finance", "Network"], index=0)
+            work_stream_filter = st.selectbox("Filter by Work Stream", ["All", "OTC", "PTP", "RTR", "Data", "Technology"], index=0)
 
             initiatives = load_initiatives()
         if initiatives:
@@ -222,8 +222,8 @@ if check_password():
                     height=600
                 ).configure_legend(
                     orient='bottom',
-                    labelFontSize=16,
-                    symbolSize=300
+                    labelFontSize=14,
+                    symbolSize=150
                 )
                 st.altair_chart(chart, use_container_width=True)
 
